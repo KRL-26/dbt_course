@@ -3,7 +3,7 @@
 name: Prod deploy (on merge to main / manual)                           #Name of the Github Action/Workflow
 
 on:                                                                     #TRIGGERS
-  push:                                                                 #It will run if there is a push in main
+  push:                                                                 #It will run if there is a push in main//Also Accepting a Pull Request to Main is the same as a Push to Main
     branches: [ "main" ]
   workflow_dispatch:                                                    #It will run if we want to excute it manually
 
