@@ -19,6 +19,7 @@ SELECT
     CASE WHEN minimum_nights = 0 THEN 1 ELSE minimum_nights END AS minimum_nights,
     host_id,
     REPLACE(price_str,'$') :: NUMBER (10,2) AS price,
+    price_str,                                                                              --Price_usd: Ejemplo de cambio para comparar versiones entre prod vs dev
     created_at,
     updated_at
 FROM src_listings
