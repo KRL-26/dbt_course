@@ -1,0 +1,37 @@
+###########################
+#Definimos los sources
+###########################
+version: 2
+
+sources:
+  - name: airbnb                      #Nombre db
+    schema: raw                       #Esquema de la tabla
+    tables:
+      - name: listings                #Identificador de la source
+        identifier: raw_listings      #Nombre de la tabla
+
+        columns:
+          - name: room_type
+            data_tests:
+              - dbt_expectations.expect_column_distinct_count_to_equal:     #Expect the number of distinct column values to be equal to a given value
+                  arguments:
+                    value: 4
+
+          - name: price
+            data_tests:
+              - dbt_expectations.expect_column_values_to_match_regex:       #Expect column entries to be strings that match a given regular expression
+                  arguments:                                                #Valid matches can be found anywhere in the string, for example: "[at]+"
+                    regex: "^\\\\$[0-9][0-9\\\\.]+$"                        #Will identify the following strings as expected: cat,hat,aa,a,and,t and the following strings as unexpected: fish,dog
+
+
+      - name: hosts                   #Identificador de la source
+        identifier: raw_hosts         #Nombre de la tabla
+      
+
+      - name: reviews                 #Identificador de la source
+        identifier: raw_reviews       #Nombre de la tabla
+        config:
+          loaded_at_field: date                       #Definimos la column que dbt chequeara en este source para comprobar el freshness
+          freshness:
+            warn_after: {count: 1, period: hour}      #Definimos que si la fecha mas vieja es de hace 1 hora nos salga warning
+            error_after: {count: 24, period: hour}    #Definimos que si la fecha mas vieja es de hace 24 horas nos salga error

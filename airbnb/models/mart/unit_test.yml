@@ -1,0 +1,20 @@
+#####################################
+#Practica Unit Test
+#####################################
+unit_tests:
+- name: unittest_fullmoon_matcher             #Le damos nombre al test unitario
+  model: mart_fullmoon_reviews                #Indicamos qué modelo hacemos test
+  given:
+    - input: ref('fact_reviews')               #Donde metemos los input data
+      rows:
+      - {review_date: '2025-01-13'}           #Datos que metemos hardcodeados
+      - {review_date: '2025-01-14'}
+      - {review_date: '2025-01-15'}
+    - input: ref('seed_full_moon_dates') 
+      rows:
+      - {full_moon_date: '2025-01-14'}
+  expect:                                     #Indicamos que esperariamos con los datos metidos
+    rows:
+      - {review_date: '2025-01-13', is_full_moon: "not full moon"}        #Valores hardcodeados que esperamos
+      - {review_date: '2025-01-14', is_full_moon: "not full moon"}
+      - {review_date: '2025-01-15', is_full_moon: "full moon"}

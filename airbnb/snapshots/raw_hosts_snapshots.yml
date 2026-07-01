@@ -1,0 +1,12 @@
+#####################################
+#Practica creacion Snapshots para cambios tipo 2
+#####################################
+#DBT crea a aprtir del modelo sources un snapshot con mas metadatos para seguir si un registro se elimino o se borro
+snapshots:
+  - name: scd_raw_hosts
+    relation: source('airbnb','hosts')
+    config:
+      unique_key: id
+      updated_at:  updated_at
+      strategy: timestamp
+      hard_deletes: invalidate

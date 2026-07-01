@@ -1,0 +1,164 @@
+#####################################
+#Practica Data Test: Generic Tests y Contracts
+#####################################
+models:                                                       #Indicamos qué queremos hacer test
+  - name: dim_listings_cleansed                               #Nombre del modelo que queremos testear
+    description: Cleansed table which contains Airbnb listings.   #Definimos documentacion tipo descripcion
+    
+    data_tests:                                         #Llamamos a la funcion generica custom
+      - minimum_row_count:                                #Indicamos qué funcion generica custom llamamos
+          arguments:                                      #Definimos los argumentos
+            min_row_count: 1000                           #le damos el valor al argumento
+          severity: error                                 #Sobreescribimos el error que tiene que dar. Default es un warning pero con esto decimos que sea un error
+
+    columns:
+      - name: listing_id                                #Columna del modelo que queremos testear
+        description: Primary key for the listing        #Definimos documentacion tipo descripcion
+        data_tests:
+          - unique                                        #Comprueba que sean valores unicos
+          - not_null                                      #Comprueba que no tenga valores nulos
+
+      - name: host_id                                   #Columna del modelo que queremos testear
+        description: The host's id. References the host table.    #Definimos documentacion tipo descripcion
+        data_tests:
+          - not_null                                      #Comprueba que no sean valores nulos
+          - relationships:
+              arguments:
+                to: ref('dim_hosts_cleansed')               #Comprobamos la relacion entre estas foreign keys
+                field: host_id
+
+      - name: room_type
+        description: Type of the apartment / room           #Definimos documentacion tipo descripcion
+        data_tests:
+          - accepted_values:  
+              arguments:                             #Comprobamos que los valores esten entre los definidos en values
+                values: ['Entire home/apt',
+                            'Private room',
+                            'Shared room',
+                            'Hotel room']
+      
+      - name: minimum_nights                            #Definimos columna a la que testear
+        description: '{{ doc("dim_listing_cleansed__minimum_nights") }}'    #Llamamos a la documentacion definida como una macro JINJA que viene de docs.md con el nombre de dim_listing_cleansed__minimum_nights
+        data_tests:
+          - positive_values                             #Llamamos a la funcion generica custom
+
+
+  - name: dim_hosts_cleansed
+    versions:                                                 #Indicamos que tenemos varias versiones de este modelo           
+      - v: 1                                                  
+        defined_in: dim_hosts_cleansed                        #Definimos cual sera la version 1
+        deprecation_date: 2030-01-01                          #Definimos cuando dejara de estar disponible
+      - v: 2                                                  #Como hemos definido la version 1, la segunda la cogerá automaticamente buscando el prefijo v2
+        columns:
+          - include: '*'                                      #Indicamos que la version 2, coje todos los campos de la version 1
+            exclude: [host_name]                              #Exceptuando el campo host name
+          - name: host_name                                   #Definimos como será la nueva version de la columna host_name
+            description: The name of the host (N/A if not available)
+            data_type: string
+            constraints:
+              - type: not_null
+    latest_version: 2
+
+    description: Cleansed table for the Airbnb hosts
+
+    config:
+      contract:
+        enforced: true
+
+    #constraints:
+    #  - type: primary_key
+    #    columns : [host_id]
+
+    columns:
+      - name: host_id
+        description: The id of the host. This is the primary key.
+        data_type: integer 
+        #constraints:
+        #  - type: not_null
+        #  - type: unique
+        data_tests:
+          - not_null
+          - unique
+
+      - name: host_name
+        description: The name of the host
+        data_type: string
+        #constraints:
+        #  - type: not_null
+        data_tests:
+          - not_null
+
+      - name: is_superhost
+        description: Defines whether the hosts is a superhost.
+        data_type: string
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['t', 'f']
+
+      - name: updated_at
+        data_type: timestamp
+
+      - name: created_at
+        data_type: timestamp
+
+
+  - name: dim_listings_w_hosts
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_equal_other_table:         #Usamos test de libreria "dbt expectations"
+          arguments:
+            compare_model: source('airbnb','listings')                        #Compara el numero de registros en la tabla "dim_listings_w_hosts" con la del source: "listings"
+
+    columns:
+      - name: price
+        data_tests:
+          - dbt_expectations.expect_column_quantile_values_to_be_between:              #Usamos libreria test "dbt expectations"
+              arguments:
+                quantile: .99                                                  #Decimos lo que esperamos que cumplan los datos: En este caso el 99% de los datos queremos que esten en este rango
+                min_value: 50
+                max_value: 500
+          - dbt_expectations.expect_column_max_to_be_between:                  #Expect the column max to be between a min and max value
+              arguments:
+                max_value: 5000
+              config:                                                          #Decimos que no nos de error sino warning
+                severity: warn
+          - dbt_expectations.expect_column_values_to_be_of_type:               #Expect a column to be of a specified data type 
+              arguments:
+                column_type: number                                                     
+
+
+  - name: fact_reviews
+    columns:
+      - name: listing_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_listings_cleansed')
+                field: listing_id
+
+      - name: reviewer_name
+        data_tests:
+          - not_null
+
+      - name: review_sentiment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['positive', 'neutral', 'negative']
+
+
+  # - name: dim_hosts_cleansed          #Definimos de qué modelo queremos hacer el contract
+  #   config:
+  #     contract:
+  #       enforced: true                #Decimos que este test será un contract
+  #   columns:                          #Definimos el esquema que debe tener este contrac
+  #     - name: host_id                 #Definimos el nombre de la columna
+  #       data_type: integer            #Definimos el tipo de dato que tiene que ser
+  #     - name: host_name               #Si alguien cambia el tipo de dato esto nos dara un error y avisará. Es como la plantilla que debe cumplir
+  #       data_type: string
+  #     - name: is_superhost
+  #       data_type: string
+  #     - name: updated_at
+  #       data_type: timestamp
+  #     - name: created_at
+  #       data_type: timestamp

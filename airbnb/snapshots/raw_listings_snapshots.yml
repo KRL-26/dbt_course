@@ -1,0 +1,14 @@
+#####################################
+#Practica Materializacion Modelos
+#####################################
+#Mejor practica: poner snapshot.yml debajo de su correspondiente modelo de sources
+snapshots:                                     #Empezamos diciendo que esto es un snapshot
+  - name: scd_raw_listings                    #Damos nombre a la tabla de snapshots. Esta tiene los campos del source junto con los metadatos
+    relation: source('airbnb','listings')     #Referenciamos cual es el source
+    config:                                   #Definimos su configuración
+      unique_key: id                          #Definimos que campo de source sera el unique id para la strategia con timestamp
+      updated_at: updated_at                  #Definimos que campo de source sera el updated date para la estrategia de timestamp
+      strategy: timestamp                     #Declaramos el tipo de estrategia para el snapshot
+      hard_deletes: invalidate                #Definimos que pasa si alguien borra el dato de source
+                                              #con invalidate: al hacer snapshot cerrara el ciclo del valor antiguo poniendo una fecha en validate_to
+                                              #new_record: cre otro campo de metadata "dbt_is_deleted", si se borro lo pone a TRUE

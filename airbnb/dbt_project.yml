@@ -1,0 +1,71 @@
+
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'airbnb'
+version: '1.0.0'
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'airbnb'
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+asset-paths: ["assets"]               #ruta para los assets de la documentacion: imagenes, videos....
+
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+#Definimos el hook: En este caso es on-run-start. Se ejecutara siempre luego de hacer dbt run, dbt test...
+on-run-start:
+  #Definimos que queremos que haga el hook
+  - "CREATE TABLE IF NOT EXISTS {{ target.schema }}.audit_log (
+      model_name STRING,
+      run_timestamp TIMESTAMP
+    )"
+
+# Configuring models
+# Full documentation: https://docs.getdbt.com/docs/configuring-models
+
+# In this example config, we tell dbt to build all models in the example/
+# directory as views. These settings can be overridden in the individual model
+# files using the `{{ config(...) }}` macro.
+models:
+  airbnb:
+    #Definimos Hook: en este caso es post hook y lo hacemos aqui porque queremos que se haga despues de crear cada modelo
+    #En caso de meterlo dentro de una carpeta o debajo de un modelo solo se haria para esos casos
+    +post-hook:
+      - "INSERT INTO {{ target.schema }}.audit_log VALUES ('{{ this }}', CURRENT_TIMESTAMP)"    
+
+    #Definimos Grants: lo hacemos aqui para que se concedan estos permisos en la creacion de cada modelo   
+    +grants:
+      #Indicamos a quien queremos darle permisos
+      select: ["transform","reporter"]
+
+    # Config indicated by + and applies to all files under models/example/
+    +materialized: view #Aqui definimos la materializacion de los modelos en el proyecto Airbnb. De forma predeterminada es una view
+    
+    dim:
+      +materialized: table #Definimos la materializacion de los modelos en la subcarpeta de models: dim
+
+    src:
+      +materialized: ephemeral #Definimos la materializcion de los modelos en la subcarpeta de models: src
+
+    fact:
+      +tags: ['fact']     #Atribuimos a todos los modelos que se crean en este carpeta el tag de fact
+
+vars:
+  user_name: default_user_name_for_this_project   #Creamos nuestra variable user_name
+
+data_tests:               #Configuracion para guardar los fallos al hacer los test en modelos
+  +store_failures: true   #Crea tablas de cada modelo donde se hace test para guardar los fallos de los test
+                          #Devuelve una query para ejecutar que te demuestra los valores que fallaron el test
+  +schema: test_failures  #De forma general  el schema que crea para las tablas donde se guardan los fallos es: dev_dbt_test_audit
+                          #Con este parametro indicamos el nombre del esquema que queremos, ahora: dev_test_failure                  
