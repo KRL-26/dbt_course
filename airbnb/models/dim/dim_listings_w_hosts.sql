@@ -13,7 +13,8 @@ SELECT
     l.listing_name,
     l.room_type,
     l.minimum_nights,
-    l.price AS price,                                       --Price_usd: Ejemplo de cambio para comparar versiones entre prod vs dev
+    l.price AS price,  
+    l.price_str,                                     --Price_usd: Ejemplo de cambio para comparar versiones entre prod vs dev
     l.host_id,
     h.host_name,
     h.is_superhost AS host_is_superhost,

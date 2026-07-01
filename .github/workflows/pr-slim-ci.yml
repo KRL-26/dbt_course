@@ -1,49 +1,56 @@
-name: PR slim CI (defer to prod artifact)
+# GITHUB Action
+name: PR slim CI (defer to prod artifact)                                 #Name of the Github Action/Workflow
 
-on:
-  pull_request:
+on:                                                                       #TRIGGERS
+  pull_request:                                                           #It will run if there is a pull request on every branch
     branches: [ "**" ]
 
 permissions:
-  contents: read
-  actions: read
+  contents: read                                                          #It has permission to read the repository
+  actions: read                                                           #It has permission to read artifacts in the repository
 
-jobs:
+jobs:                                                                     #JOBS
   slim-ci:
     name: Build modified with defer to prod artifact
     runs-on: ubuntu-latest
-    env:
+    env:                                                                  #Builds Env Variables with Github Secrets
       SNOWFLAKE_ACCOUNT:      "${{ secrets.SNOWFLAKE_ACCOUNT }}"
       DBT_USER:               "${{ secrets.DBT_USER }}"
       PRIVATE_KEY: |
         ${{ secrets.PRIVATE_KEY }}
       PRIVATE_KEY_PASSPHRASE: "${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
 
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+    steps:                                                                #STEPS
+      - uses: actions/checkout@v6                                         #Will download your repository to this ubuntu machine
+      - uses: astral-sh/setup-uv@v7                                       #Will setup your UV and your virtual environment
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-      - run: uv python install 3.13
-      - run: uv sync
-      - name: Set DBT_ENV_NAME from branch (uppercase, _ for / and -)
+      - run: uv python install 3.13                                       #Will install python
+      - run: uv sync                                                      #Will setup the environment
+      - name: Set DBT_ENV_NAME from branch (uppercase, _ for / and -)     #Will create a env variable on Github taking the branch name and cleaning it
         run: |
-          NAME="${{ github.head_ref }}"
+          NAME="${{ github.head_ref }}"                                                   
           SANITIZED=$(echo "$NAME" | tr '/' '_' | tr '-' '_' | tr '[:lower:]' '[:upper:]')
           echo "DBT_ENV_NAME=$SANITIZED" >> "$GITHUB_ENV"
           echo "PR will build into schema: DBT_$SANITIZED"
-      - run: cd airbnb && uv run dbt deps --profiles-dir _prod_profiles --target dev
-      - name: Download latest prod-target artifact from main
+      - run: cd airbnb && uv run dbt deps --profiles-dir _prod_profiles --target dev    #We build dbt dev
+      - name: Download latest prod-target artifact from main                            #We download latest production artifact
         uses: dawidd6/action-download-artifact@v21
         with:
           workflow: prod-build.yml
           branch: main
-          name: prod-target
-          path: airbnb/prod-target
+          name: prod-target                                                           #This is the name of the latest prod artifact
+          path: airbnb/prod-target                                                    #In this path we download the latest prod artifact
           if_no_artifact_found: fail
-      - name: dbt build (slim CI if manifest available, else full)
+      - name: dbt build (slim CI if manifest available, else full)    #Once we have our dev schema built and latest prod artifact, we can execute defer so only modified models will be build and models that depends on them and are located upper in the workflow.
         run: |
           cd airbnb
           uv run dbt build --profiles-dir _prod_profiles --target dev \
             --select state:modified+ --defer --state ./prod-target
+
+      #Crea los modelos modificados y los que dependen de estos modelos modificados en el esquema de "DEV"
+      #Para crear estos modelos, como ya tiene las dependencias del esquema de DEV y el ultimo artefacto de producción
+      #Puede comparar, lo que se ha modificado entre ambos. Ademas, como usa defer
+      #En caso de que un modelo se necesite pero no esté en DEV, lo usara de PROD.
+      #Nos aseguramos asi solo de crear nuevos modelos modificados
