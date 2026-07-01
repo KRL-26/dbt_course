@@ -1,42 +1,39 @@
-# Reference only
-# Please go to https://github.com/zoltanctoth/dbt-reference-production-repo
-# for a latest working example of this file
+# GITHUB Action
+# Will build our dbt project in the production schema
+name: Prod deploy (on merge to main / manual)                           #Name of the Github Action/Workflow
 
-name: Prod deploy (on merge to main / manual)
-
-on:
-  push:
+on:                                                                     #TRIGGERS
+  push:                                                                 #It will run if there is a push in main
     branches: [ "main" ]
-  workflow_dispatch:
+  workflow_dispatch:                                                    #It will run if we want to excute it manually
 
-permissions:
-  contents: read
+permissions:                                                            #It has permission to read the repository and work with artifacts
+  contents: read 
   actions: read
 
-jobs:
+jobs:                                                                   #JOB
   build:
     name: Production deps and build
-    if: github.repository != 'nordquant/complete-dbt-bootcamp-zero-to-hero'
-    runs-on: ubuntu-latest
-    env:
+    runs-on: ubuntu-latest                                              #We are running the job in a machine called ubuntu-latest
+    env:                                                                #We import the Github Secrets we had defined as env Variables
       SNOWFLAKE_ACCOUNT:      "${{ secrets.SNOWFLAKE_ACCOUNT }}"
       DBT_USER:               "${{ secrets.DBT_USER }}"
       PRIVATE_KEY: |
         ${{ secrets.PRIVATE_KEY }}
       PRIVATE_KEY_PASSPHRASE: "${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+    steps:                                                              #STEPS
+      - uses: actions/checkout@v6                                       #Will download your repository to this ubuntu machine
+      - uses: astral-sh/setup-uv@v7                                     #Will setup your UV and your virtual environment
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-      - run: uv python install 3.13
-      - run: uv sync
-      - run: cd airbnb && uv run dbt deps --profiles-dir _prod_profiles --target prod
-      - run: cd airbnb && uv run dbt build --profiles-dir _prod_profiles --target prod
-      - name: Upload prod target as artifact
-        uses: actions/upload-artifact@v4
+      - run: uv python install 3.13                                     #Will install python                  
+      - run: uv sync                                                    #Will create the UV environment
+      - run: cd airbnb && uv run dbt deps --profiles-dir _prod_profiles --target prod #Goes to "airbnb" folder. uv run = "activate virtual environment". dbt deps = "dbt get the dependencies"
+      - run: cd airbnb && uv run dbt build --profiles-dir _prod_profiles --target prod  #Goes to "airbnb" folder. uv run = "activate virtual environment". dbt build = "dbt build the prod schema"
+      - name: Upload prod target as artifact                            #Once built, we want to upload our prod target folder
+        uses: actions/upload-artifact@v4                                #Upload the artifact
         with:
-          name: prod-target
-          path: airbnb/target/
-          retention-days: 90
+          name: prod-target                                             #Name of the artifact will be upload
+          path: airbnb/target/                                          #Path where the target will be upload
+          retention-days: 90                                            #Not used in production usually
